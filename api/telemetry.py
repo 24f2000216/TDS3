@@ -1,5 +1,5 @@
 # api/telemetry.py
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import math
@@ -32,7 +32,9 @@ def compute_p95(values: List[float]) -> Optional[float]:
     return float(s[idx])
 
 
+# Accept both "/" (local) and "/api/telemetry" (Vercel) as POST endpoints
 @app.post("/")
+@app.post("/api/telemetry")
 async def telemetry_metrics(body: Dict[str, Any]):
     """
     Expects JSON body: {"regions": [...], "threshold_ms": 180}
@@ -42,7 +44,10 @@ async def telemetry_metrics(body: Dict[str, Any]):
     threshold_ms = body.get("threshold_ms")
 
     if not isinstance(regions, list) or threshold_ms is None:
-        raise HTTPException(status_code=400, detail="Body must be {'regions':[...], 'threshold_ms': <number>}")
+        raise HTTPException(
+            status_code=400,
+            detail="Body must be {'regions':[...], 'threshold_ms': <number>}"
+        )
 
     result = {}
     for region in regions:
@@ -50,7 +55,11 @@ async def telemetry_metrics(body: Dict[str, Any]):
         records = [r for r in TELEMETRY if r.get("region") == region]
 
         # collect numeric latencies
-        latencies = [float(r.get("latency_ms")) for r in records if isinstance(r.get("latency_ms"), (int, float))]
+        latencies = [
+            float(r.get("latency_ms"))
+            for r in records
+            if isinstance(r.get("latency_ms"), (int, float))
+        ]
 
         # collect uptime values and normalize:
         # if uptime > 1 assume it's percent (e.g., 99.9) and convert to fraction (0.999)
